@@ -20,8 +20,8 @@ import Node.Error as NodeError exposing (..)
 
 
 type alias Config =
-    { host : String
-    , port_ : Int
+    { clamavHost : String
+    , clamavPort : Int
     }
 
 
