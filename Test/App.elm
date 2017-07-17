@@ -3,10 +3,9 @@ port module App exposing (..)
 -- Needed otherwise Json.Decode is not included in compiled js
 
 import Json.Decode
-import Task exposing (fail)
 import Scanner exposing (..)
 import Node.Encoding as Encoding exposing (..)
-import Node.Global exposing (parseInt)
+import Node.Buffer as Buffer exposing (..)
 import Node.Error as NodeError exposing (..)
 import Utils.Ops exposing (..)
 
@@ -39,18 +38,18 @@ type Msg
 
 init : Flags -> ( Model, Cmd Msg )
 init flags =
-    parseInt 10 flags.clamavPort
+    String.toInt flags.clamavPort
         |??>
-            (\possiblePort ->
-                (isNaN (toFloat possiblePort)
-                    ?! ( (\_ -> Debug.crash ("Invalid clamavPort: " ++ flags.clamavPort)), always possiblePort )
-                )
-                    |> (\clamavPort ->
-                            Scanner.config flags.clamavHost clamavPort
-                                |> (\config -> model ! [ Scanner.scanString config "scanString TEST" "hi there" Utf8 ScannerComplete ])
+            (\clamavPort ->
+                Scanner.config flags.clamavHost clamavPort
+                    |> (\config ->
+                            model
+                                ! [ Scanner.scanString config "scanString TEST" "hi there" Utf8 ScannerComplete
+                                  , Scanner.scanString config "scanString BASE64 TEST" (encodeString Base64 "hi there base64") Base64 ScannerComplete
+                                  ]
                        )
             )
-        ??= (\error -> Debug.crash ("Invalid clamavPort: " ++ (NodeError.message error)))
+        ??= (\error -> Debug.crash ("Invalid clamavPort: " ++ error))
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -86,3 +85,12 @@ main =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     externalStop Exit
+
+
+encodeString : Encoding -> String -> String
+encodeString encoding str =
+    (Buffer.fromString Encoding.Utf8 str
+        |> Result.andThen (Buffer.toString encoding)
+        |> Result.mapError (\error -> NodeError.message <| error)
+    )
+        ??= (\error -> Debug.crash ("Encode error: " ++ error))
