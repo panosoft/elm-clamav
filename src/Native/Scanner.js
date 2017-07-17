@@ -5,19 +5,20 @@ var _panosoft$elm_clamav$Native_Scanner = function() {
 
     const scan = F3((config, name, buffer) =>
         nativeBinding(callback => {
-            console.log(name, buffer.length);
             try {
+                console.log({config: config, name: name, buffer_length: buffer.length});
                 const bufferStream = new stream.PassThrough();
                 bufferStream.end(buffer);
-                clamav.createScanner(config.port, config.host).scan(bufferStream, (err, object, malicious) => {
-                    console.log(err, object, malicious);
+                clamav.createScanner(config.clamavPort, config.clamavHost).scan(bufferStream, (err, object, malicious) => {
+                    console.log({name: name, err: err, malicious: malicious});
                     callback(err
-                	? fail('Error scanning ' + name + ':' + err.message)
-                	: (malicious ? fail('Virus found scanning ' + name + ':' + malicious) : succeed(name))
+                    	? fail('Error scanning ' + name + ':' + err.message)
+                    	: (malicious ? fail('Virus found scanning ' + name + ':' + malicious) : succeed(name)))
                 });
             }
             catch (error) {
             	callback(fail('Error scanning ' + name + ':' + err.message));
         	 }
         }));
+        return { scan };
 }();

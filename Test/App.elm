@@ -3,8 +3,12 @@ port module App exposing (..)
 -- Needed otherwise Json.Decode is not included in compiled js
 
 import Json.Decode
+import Task exposing (fail)
 import Scanner exposing (..)
 import Node.Encoding as Encoding exposing (..)
+import Node.Global exposing (parseInt)
+import Node.Error as NodeError exposing (..)
+import Utils.Ops exposing (..)
 
 
 port exitApp : Float -> Cmd msg
@@ -15,7 +19,7 @@ port externalStop : (() -> msg) -> Sub msg
 
 type alias Flags =
     { clamavHost : String
-    , clamavPort : Int
+    , clamavPort : String
     }
 
 
@@ -35,12 +39,18 @@ type Msg
 
 init : Flags -> ( Model, Cmd Msg )
 init flags =
-    let
-        config =
-            Scanner.config flags.clamavHost flags.clamavPort
-    in
-        model
-            ! [ Scanner.scanString config "test" "hi there" Utf8 ScannerComplete ]
+    parseInt 10 flags.clamavPort
+        |??>
+            (\possiblePort ->
+                (isNaN (toFloat possiblePort)
+                    ?! ( (\_ -> Debug.crash ("Invalid clavavPort: " ++ flags.clamavPort)), always possiblePort )
+                )
+                    |> (\clamavPort ->
+                            Scanner.config flags.clamavHost clamavPort
+                                |> (\config -> model ! [ Scanner.scanString config "scanString TEST" "hi there" Utf8 ScannerComplete ])
+                       )
+            )
+        ??= (\error -> Debug.crash ("Invalid clavavPort: " ++ (NodeError.message error)))
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )

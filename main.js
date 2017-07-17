@@ -6,7 +6,7 @@ const elm = require('./elm.js');
 
 // Get clamav daemon host and port
 const clamavHost = process.argv[2] || 'localhost';
-const clamavPort = process.argv[3] || 3310;
+const clamavPort = process.argv[3] || '3310';
 
 const flags = {
     clamavHost,
