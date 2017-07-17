@@ -43,14 +43,14 @@ init flags =
         |??>
             (\possiblePort ->
                 (isNaN (toFloat possiblePort)
-                    ?! ( (\_ -> Debug.crash ("Invalid clavavPort: " ++ flags.clamavPort)), always possiblePort )
+                    ?! ( (\_ -> Debug.crash ("Invalid clamavPort: " ++ flags.clamavPort)), always possiblePort )
                 )
                     |> (\clamavPort ->
                             Scanner.config flags.clamavHost clamavPort
                                 |> (\config -> model ! [ Scanner.scanString config "scanString TEST" "hi there" Utf8 ScannerComplete ])
                        )
             )
-        ??= (\error -> Debug.crash ("Invalid clavavPort: " ++ (NodeError.message error)))
+        ??= (\error -> Debug.crash ("Invalid clamavPort: " ++ (NodeError.message error)))
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
