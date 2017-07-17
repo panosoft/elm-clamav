@@ -65,6 +65,10 @@ scanString config "<name> <string to scan> <string encoding> ScanComplete
 -}
 scanString : Config -> String -> String -> Encoding -> (Result String String -> msg) -> Cmd msg
 scanString config name targetString encoding tagger =
-    fromString encoding targetString
-        |??> (\buffer -> scanBuffer config name buffer tagger)
-        ??= (\error -> Task.fail (NodeError.message error) |> Task.attempt tagger)
+    let
+        l =
+            Debug.log "scanString" ("--> " ++ name ++ " --> " ++ targetString ++ " --> " ++ (Encoding.toString encoding))
+    in
+        fromString encoding targetString
+            |??> (\buffer -> scanBuffer config name buffer tagger)
+            ??= (\error -> Task.fail (NodeError.message error) |> Task.attempt tagger)

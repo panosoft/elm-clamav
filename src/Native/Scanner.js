@@ -6,7 +6,9 @@ var _panosoft$elm_clamav$Native_Scanner = function() {
     const scan = F3((config, name, buffer) =>
         nativeBinding(callback => {
             try {
-                console.log({config: config, name: name, buffer_length: buffer.length});
+
+                console.log({config: config, name: name, buffer_length: buffer.length,
+                    bufferAsString: buffer.toString(null, 0, (buffer.length > 100 ? 100 : buffer.length))});
                 const bufferStream = new stream.PassThrough();
                 bufferStream.end(buffer);
                 clamav.createScanner(config.clamavPort, config.clamavHost).scan(bufferStream, (err, object, malicious) => {
