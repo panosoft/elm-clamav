@@ -1,6 +1,7 @@
 module Scanner
     exposing
-        ( config
+        ( Config
+        , scanFile
         , scanBuffer
         , scanString
         )
@@ -8,7 +9,7 @@ module Scanner
 {-| Clamav Scan Api.
 
 # Scanner
-@docs config, scanBuffer, scanString
+@docs Config, scanFile, scanBuffer, scanString
 -}
 
 import Native.Scanner
@@ -16,27 +17,39 @@ import Task
 import Utils.Ops exposing (..)
 import Node.Encoding as Encoding exposing (..)
 import Node.Buffer as Buffer exposing (..)
+import Node.FileSystem as NodeFileSystem exposing (..)
 import Node.Error as NodeError exposing (..)
 
 
+{-| Config
+-}
 type alias Config =
     { clamavHost : String
     , clamavPort : Int
     }
 
 
-{-| Create a configuration .
+type alias ScannerComplete msg =
+    Result ( String, String ) String -> msg
+
+
+{-| Scan File for viruses.
 
 ```
-config = Scanner.config
-    "Clamav Host"
-    "Clamav Port"
+type Msg =
+    ScanComplete (Result String String)
 
+scanFile config "testfile.txt" ScanComplete true
 ```
 -}
-config : String -> Int -> Config
-config =
-    Config
+scanFile : Config -> String -> ScannerComplete msg -> Bool -> Cmd msg
+scanFile config filename tagger debug =
+    debug
+        ?! ( (\_ -> Debug.log "Scanner -- Reading file" filename), (\_ -> filename) )
+        |> NodeFileSystem.readFile
+        |> Task.mapError (\error -> ( filename, NodeError.message error ))
+        |> Task.andThen (\buffer -> Native.Scanner.scan config filename buffer debug)
+        |> Task.attempt tagger
 
 
 {-| Scan Buffer for viruses.
@@ -45,12 +58,12 @@ config =
 type Msg =
     ScanComplete (Result String String)
 
-scanBuffer config "<name> <node buffer> ScanComplete
+scanBuffer config "testBuffer" buffer ScanComplete false
 ```
 -}
-scanBuffer : Config -> String -> Buffer -> (Result String String -> msg) -> Cmd msg
-scanBuffer config name buffer tagger =
-    Native.Scanner.scan config name buffer
+scanBuffer : Config -> String -> Buffer -> ScannerComplete msg -> Bool -> Cmd msg
+scanBuffer config targetName targetBuffer tagger debug =
+    Native.Scanner.scan config targetName targetBuffer debug
         |> Task.attempt tagger
 
 
@@ -60,15 +73,18 @@ scanBuffer config name buffer tagger =
 type Msg =
     ScanComplete (Result String String)
 
-scanString config "<name> <string to scan> <string encoding> ScanComplete
+scanString config "testString" "testingString" Encoding.Utf8 ScanComplete true
 ```
 -}
-scanString : Config -> String -> String -> Encoding -> (Result String String -> msg) -> Cmd msg
-scanString config name targetString encoding tagger =
+scanString : Config -> String -> String -> Encoding -> ScannerComplete msg -> Bool -> Cmd msg
+scanString config targetName targetString encoding tagger debug =
     let
         l =
-            Debug.log "scanString" ("--> " ++ name ++ " --> " ++ targetString ++ " --> " ++ (Encoding.toString encoding))
+            debug
+                ?! ( (\_ -> (Debug.log "Scanner -- scanString" ("--> " ++ targetName ++ " --> " ++ targetString ++ " --> " ++ (Encoding.toString encoding))))
+                   , (\_ -> "")
+                   )
     in
         fromString encoding targetString
-            |??> (\buffer -> scanBuffer config name buffer tagger)
-            ??= (\error -> Task.fail (NodeError.message error) |> Task.attempt tagger)
+            |??> (\buffer -> scanBuffer config targetName buffer tagger debug)
+            ??= (\error -> Task.fail ( targetName, NodeError.message error ) |> Task.attempt tagger)
