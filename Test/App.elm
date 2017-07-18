@@ -3,9 +3,11 @@ port module App exposing (..)
 -- Needed otherwise Json.Decode is not included in compiled js
 
 import Json.Decode
+import Task exposing (Task)
 import Scanner exposing (..)
 import Node.Encoding as Encoding exposing (..)
 import Node.Buffer as Buffer exposing (..)
+import Node.FileSystem as NodeFileSystem exposing (..)
 import Node.Error as NodeError exposing (..)
 import Utils.Ops exposing (..)
 
@@ -40,6 +42,7 @@ initModel config =
 
 type Msg
     = Exit ()
+    | ReadFileComplete String Bool (Result String Buffer)
     | ScannerComplete (Result ( String, String ) String)
 
 
@@ -57,6 +60,20 @@ update msg model =
     case msg of
         Exit _ ->
             model ! [ exitApp 1 ]
+
+        ReadFileComplete filename debug (Err error) ->
+            let
+                l =
+                    Debug.log "ReadFileComplete Error" error
+            in
+                model ! []
+
+        ReadFileComplete filename debug (Ok buffer) ->
+            let
+                l =
+                    Debug.log "ReadFileComplete" filename
+            in
+                model ! [ Scanner.scanBuffer model.scannerConfig (filename ++ " Buffer TEST") buffer ScannerComplete debug ]
 
         ScannerComplete (Err error) ->
             let
@@ -87,6 +104,22 @@ subscriptions model =
     externalStop Exit
 
 
+buildTestCmd : Scanner.Config -> String -> Bool -> List (Cmd Msg)
+buildTestCmd config testfile debug =
+    [ Scanner.scanFile config testfile ScannerComplete debug
+    , readFileCmd testfile debug
+    , Scanner.scanString config "scanString BASE64 TEST" (encodeString Base64 "hi there base64") Base64 ScannerComplete debug
+    , Scanner.scanString config "scanString TEST" "hi there" Utf8 ScannerComplete debug
+    ]
+
+
+readFileCmd : String -> Bool -> Cmd Msg
+readFileCmd filename debug =
+    NodeFileSystem.readFile filename
+        |> Task.mapError (\error -> NodeError.message error)
+        |> Task.attempt (ReadFileComplete filename debug)
+
+
 encodeString : Encoding -> String -> String
 encodeString encoding str =
     (Buffer.fromString Encoding.Utf8 str
@@ -94,11 +127,3 @@ encodeString encoding str =
         |> Result.mapError NodeError.message
     )
         ??= (\error -> Debug.crash ("Encode error: " ++ error))
-
-
-buildTestCmd : Scanner.Config -> String -> Bool -> List (Cmd Msg)
-buildTestCmd config testfile debug =
-    [ Scanner.scanFile config testfile ScannerComplete debug
-    , Scanner.scanString config "scanString BASE64 TEST" (encodeString Base64 "hi there base64") Base64 ScannerComplete debug
-    , Scanner.scanString config "scanString TEST" "hi there" Utf8 ScannerComplete debug
-    ]
