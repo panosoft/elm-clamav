@@ -32,12 +32,28 @@ type alias Flags =
 
 
 type alias Model =
-    { scannerConfig : Scanner.Config }
+    { scannerConfig : Scanner.Config
+    , numberOfTests : Int
+    , testsComplete : Int
+    }
 
 
-initModel : Config -> Model
+initModel : Config -> ( Model, Cmd Msg )
 initModel config =
-    { scannerConfig = Scanner.Config config.clamavHost config.clamavPort }
+    Scanner.Config config.clamavHost config.clamavPort
+        |> (\scannerConfig ->
+                buildTestCmd scannerConfig config.testfile config.debug
+                    |> (\cmds -> ({ scannerConfig = scannerConfig, numberOfTests = List.length cmds, testsComplete = 0 } ! cmds))
+           )
+
+
+init : Flags -> ( Model, Cmd Msg )
+init flags =
+    let
+        l =
+            Debug.log "Config" flags.config
+    in
+        initModel flags.config
 
 
 type Msg
@@ -46,48 +62,47 @@ type Msg
     | ScannerComplete (Result ( String, String ) String)
 
 
-init : Flags -> ( Model, Cmd Msg )
-init flags =
-    initModel flags.config
-        |> (\model ->
-                buildTestCmd model.scannerConfig flags.config.testfile flags.config.debug
-                    |> (\cmds -> model ! cmds)
-           )
-
-
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case msg of
-        Exit _ ->
-            model ! [ exitApp 1 ]
+    let
+        processTestsComplete testsComplete =
+            (testsComplete >= model.numberOfTests)
+                ? ( Task.perform Exit <| Task.succeed ()
+                  , Cmd.none
+                  )
+                |> (\cmd -> ({ model | testsComplete = testsComplete } ! [ cmd ]))
+    in
+        case msg of
+            Exit _ ->
+                model ! [ exitApp 1 ]
 
-        ReadFileComplete filename debug (Err error) ->
-            let
-                l =
-                    Debug.log "ReadFileComplete Error" error
-            in
-                model ! []
+            ReadFileComplete filename debug (Err error) ->
+                let
+                    l =
+                        Debug.log "ReadFileComplete Error" error
+                in
+                    model ! []
 
-        ReadFileComplete filename debug (Ok buffer) ->
-            let
-                l =
-                    Debug.log "ReadFileComplete" filename
-            in
-                model ! [ Scanner.scanBuffer model.scannerConfig (filename ++ " Buffer TEST") buffer ScannerComplete debug ]
+            ReadFileComplete filename debug (Ok buffer) ->
+                let
+                    l =
+                        Debug.log "ReadFileComplete" filename
+                in
+                    model ! [ Scanner.scanBuffer model.scannerConfig ("scanBuffer TEST (buffer read from " ++ filename ++ ")") buffer ScannerComplete debug ]
 
-        ScannerComplete (Err error) ->
-            let
-                l =
-                    Debug.log "ScannerComplete Error" error
-            in
-                model ! []
+            ScannerComplete (Err error) ->
+                let
+                    l =
+                        Debug.log "ScannerComplete Error" error
+                in
+                    processTestsComplete (model.testsComplete + 1)
 
-        ScannerComplete (Ok name) ->
-            let
-                l =
-                    Debug.log "ScannerComplete" name
-            in
-                model ! []
+            ScannerComplete (Ok name) ->
+                let
+                    l =
+                        Debug.log "ScannerComplete" name
+                in
+                    processTestsComplete (model.testsComplete + 1)
 
 
 main : Program Flags Model Msg
@@ -108,8 +123,8 @@ buildTestCmd : Scanner.Config -> String -> Bool -> List (Cmd Msg)
 buildTestCmd config testfile debug =
     [ Scanner.scanFile config testfile ScannerComplete debug
     , readFileCmd testfile debug
-    , Scanner.scanString config "scanString BASE64 TEST" (encodeString Base64 "hi there base64") Base64 ScannerComplete debug
-    , Scanner.scanString config "scanString TEST" "hi there" Utf8 ScannerComplete debug
+    , Scanner.scanString config "scanString BASE64 TEST" (encodeString Base64 "This is an encoded base64 test string!") Base64 ScannerComplete debug
+    , Scanner.scanString config "scanString TEST" "This is a test string!" Utf8 ScannerComplete debug
     ]
 
 
