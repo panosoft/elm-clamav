@@ -81,7 +81,12 @@ scanString config targetName targetString encoding tagger debug =
     let
         l =
             debug
-                ?! ( (\_ -> (Debug.log "Scanner -- scanString" ("--> " ++ targetName ++ " --> " ++ targetString ++ " --> " ++ (Encoding.toString encoding))))
+                ?! ( (\_ ->
+                        (String.length targetString)
+                            |> (\stringLength ->
+                                    (Debug.log "Scanner -- scanString" <| Basics.toString { name = targetName, string = (String.left 80 targetString), stringEncoding = (Encoding.toString encoding), partialStringDisplay = (stringLength > 80) ? ( True, False ) })
+                               )
+                     )
                    , (\_ -> "")
                    )
     in
