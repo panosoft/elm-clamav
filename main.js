@@ -6,7 +6,6 @@ const elm = require('./elm.js');
 
 const config = require(process.argv[2] || './sampleConfig.js');
 
-console.log(config);
 
 // get Elm ports
 const ports = elm.App.worker({config}).ports;
