@@ -37,9 +37,9 @@ type alias ScannerComplete msg =
 
 ```
 type Msg =
-    ScanComplete (Result String String)
+    ScannerComplete (Result String String)
 
-scanFile config "testfile.txt" ScanComplete true
+scanFile config "testfile.txt" ScannerComplete true
 ```
 -}
 scanFile : Config -> String -> ScannerComplete msg -> Bool -> Cmd msg
@@ -56,9 +56,9 @@ scanFile config filename tagger debug =
 
 ```
 type Msg =
-    ScanComplete (Result String String)
+    ScannerComplete (Result String String)
 
-scanBuffer config "testBuffer" buffer ScanComplete false
+scanBuffer config "testBuffer" buffer ScannerComplete false
 ```
 -}
 scanBuffer : Config -> String -> Buffer -> ScannerComplete msg -> Bool -> Cmd msg
@@ -71,9 +71,9 @@ scanBuffer config targetName targetBuffer tagger debug =
 
 ```
 type Msg =
-    ScanComplete (Result String String)
+    ScannerComplete (Result String String)
 
-scanString config "testString" "testingString" Encoding.Utf8 ScanComplete true
+scanString config "testString" "testingString" Encoding.Utf8 ScannerComplete true
 ```
 -}
 scanString : Config -> String -> String -> Encoding -> ScannerComplete msg -> Bool -> Cmd msg
