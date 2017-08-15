@@ -21,13 +21,13 @@ port externalStop : (() -> msg) -> Sub msg
 type alias Config =
     { clamavHost : String
     , clamavPort : Int
-    , testfile : String
-    , debug : Bool
     }
 
 
 type alias Flags =
-    { config : Config
+    { testfile : String
+    , config : Config
+    , debug : String
     }
 
 
@@ -38,11 +38,11 @@ type alias Model =
     }
 
 
-initModel : Config -> ( Model, Cmd Msg )
-initModel config =
+initModel : Config -> String -> Bool -> ( Model, Cmd Msg )
+initModel config testfile debug =
     Scanner.Config config.clamavHost config.clamavPort
         |> (\scannerConfig ->
-                buildTestCmd scannerConfig config.testfile config.debug
+                buildTestCmd scannerConfig testfile debug
                     |> (\cmds -> ({ scannerConfig = scannerConfig, numberOfTests = List.length cmds, testsComplete = 0 } ! cmds))
            )
 
@@ -51,9 +51,13 @@ init : Flags -> ( Model, Cmd Msg )
 init flags =
     let
         l =
-            Debug.log "Config" flags.config
+            Debug.log "flags" flags
     in
-        initModel flags.config
+        (flags.debug == "--debug")
+            ?! ( always True
+               , (\_ -> (flags.debug == "") ?! ( always False, (\_ -> Debug.crash ("optional debug parameter invalid: " ++ (Basics.toString flags.debug) ++ " . must be --debug if specified")) ))
+               )
+            |> initModel flags.config flags.testfile
 
 
 type Msg

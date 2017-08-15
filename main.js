@@ -4,11 +4,18 @@
 // load Elm module
 const elm = require('./elm.js');
 
-const config = require(process.argv[2] || './sampleConfig.js');
+const testfile = process.argv[2];
+const config = require(process.argv[3] || './sampleConfig.js');
+const debug = process.argv[4] || '';
 
+const flags = {
+    testfile,
+    config,
+    debug
+};
 
 // get Elm ports
-const ports = elm.App.worker({config}).ports;
+const ports = elm.App.worker(flags).ports;
 
 // keep our app alive until we get an exitCode from Elm or SIGINT or SIGTERM (see below)
 setInterval(id => id, 86400);
