@@ -3,23 +3,26 @@ var _panosoft$elm_clamav$Native_Scanner = function() {
     const clamav = require('clamav.js');
     const { nativeBinding, succeed, fail } = _elm_lang$core$Native_Scheduler
 
-    const scan = F4((config, name, buffer, debug) =>
+    const scan = F3((config, name, buffer) =>
         nativeBinding(callback => {
             try {
-
-                debug ? console.log('NATIVE --', {config: config, name: name, buffer_length: buffer.length,
+                config.debug ? console.log('NATIVE --', {config: config, name: name, buffer_length: buffer.length,
                     bufferAsString: buffer.toString('hex', 0, (buffer.length > 80 ? 80 : buffer.length)), partialBufferDisplay: (buffer.length > 80)}) : null;
                 const bufferStream = new stream.PassThrough();
                 bufferStream.end(buffer);
                 clamav.createScanner(config.clamavPort, config.clamavHost).scan(bufferStream, (err, object, malicious) => {
-                    debug ? console.log('NATIVE --', {name: name, err: err, malicious: malicious}) : null;
+                    config.debug ? console.log('NATIVE --', {name: name, err: err, malicious: malicious}) : null;
                     callback(err
-                        ? fail(_elm_lang$core$Native_Utils.Tuple2(name, 'Error scanning ' + name + ':' + err.message))
-                        : (malicious ? fail(_elm_lang$core$Native_Utils.Tuple2(name, 'Virus found scanning ' + name + ':' + malicious)) : succeed(name)))
+                        ? fail(_elm_lang$core$Native_Utils.Tuple2(name, {errorMessage: 'Error scanning \'' + name + '\': ' + err.message, virusName: _elm_lang$core$Maybe$Nothing}))
+                        : (malicious
+                            ? fail(_elm_lang$core$Native_Utils.Tuple2(name, {errorMessage: 'Virus found scanning \'' + name + '\': ' + malicious, virusName: _elm_lang$core$Maybe$Just(malicious)}))
+                            : succeed(name)
+                          )
+                        )
                     });
             }
             catch (error) {
-                callback(fail(_elm_lang$core$Native_Utils.Tuple2(name, 'Error scanning ' + name + ':' + err.message)));
+                callback(fail(_elm_lang$core$Native_Utils.Tuple2(name, {errorMessage: 'Error scanning \'' + name + '\': ' + err.message, virusName: _elm_lang$core$Maybe$Nothing})));
             }
         }));
         return { scan };

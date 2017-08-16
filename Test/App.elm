@@ -25,7 +25,7 @@ type alias Config =
 
 
 type alias Flags =
-    { testfile : String
+    { targetFilename : String
     , config : Config
     , debug : String
     }
@@ -40,9 +40,9 @@ type alias Model =
 
 initModel : Config -> String -> Bool -> ( Model, Cmd Msg )
 initModel config testfile debug =
-    Scanner.Config config.clamavHost config.clamavPort
+    Scanner.Config config.clamavHost config.clamavPort debug
         |> (\scannerConfig ->
-                buildTestCmd scannerConfig testfile debug
+                buildTestCmd scannerConfig testfile
                     |> (\cmds -> ({ scannerConfig = scannerConfig, numberOfTests = List.length cmds, testsComplete = 0 } ! cmds))
            )
 
@@ -55,49 +55,58 @@ init flags =
     in
         (flags.debug == "--debug")
             ?! ( always True
-               , (\_ -> (flags.debug == "") ?! ( always False, (\_ -> Debug.crash ("optional debug parameter invalid: " ++ (Basics.toString flags.debug) ++ " . must be --debug if specified")) ))
+               , (\_ ->
+                    (flags.debug == "")
+                        ?! ( always False
+                           , (\_ -> Debug.crash ("optional debug parameter invalid: " ++ (Basics.toString flags.debug) ++ " . must be --debug if specified"))
+                           )
+                 )
                )
-            |> initModel flags.config flags.testfile
+            |> initModel flags.config flags.targetFilename
 
 
 type Msg
     = Exit ()
-    | ReadFileComplete String Bool (Result String Buffer)
-    | ScannerComplete (Result ( String, String ) String)
+    | ReadFileComplete String (Result String Buffer)
+    | ScannerComplete (Result ( Scanner.Name, Scanner.ErrorMessage ) Scanner.Name)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
         processTestsComplete testsComplete =
-            (testsComplete >= model.numberOfTests)
-                ? ( Task.perform Exit <| Task.succeed ()
-                  , Cmd.none
-                  )
-                |> (\cmd -> ({ model | testsComplete = testsComplete } ! [ cmd ]))
+            model.scannerConfig.debug
+                ?! ( \_ -> Debug.log "TestsComplete" ((Basics.toString testsComplete) ++ " of " ++ (Basics.toString model.numberOfTests)), always "" )
+                |> (\_ ->
+                        (testsComplete >= model.numberOfTests)
+                            ? ( Task.perform Exit <| Task.succeed ()
+                              , Cmd.none
+                              )
+                            |> (\cmd -> ({ model | testsComplete = testsComplete } ! [ cmd ]))
+                   )
     in
         case msg of
             Exit _ ->
                 model ! [ exitApp 1 ]
 
-            ReadFileComplete filename debug (Err error) ->
+            ReadFileComplete filename (Err error) ->
                 let
                     l =
                         Debug.log "ReadFileComplete Error" error
                 in
-                    model ! []
+                    processTestsComplete (model.testsComplete + 1)
 
-            ReadFileComplete filename debug (Ok buffer) ->
+            ReadFileComplete filename (Ok buffer) ->
                 let
                     l =
                         Debug.log "ReadFileComplete" filename
                 in
-                    model ! [ Scanner.scanBuffer model.scannerConfig ("scanBuffer TEST (buffer read from " ++ filename ++ ")") buffer ScannerComplete debug ]
+                    model ! [ Scanner.scanBuffer model.scannerConfig ("scanBuffer TEST (buffer read from " ++ filename ++ ")") buffer ScannerComplete ]
 
-            ScannerComplete (Err error) ->
+            ScannerComplete (Err ( name, error )) ->
                 let
                     l =
-                        Debug.log "ScannerComplete Error" error
+                        Debug.log "ScannerComplete Error" ( name, error )
                 in
                     processTestsComplete (model.testsComplete + 1)
 
@@ -123,20 +132,20 @@ subscriptions model =
     externalStop Exit
 
 
-buildTestCmd : Scanner.Config -> String -> Bool -> List (Cmd Msg)
-buildTestCmd config testfile debug =
-    [ Scanner.scanFile config testfile ScannerComplete debug
-    , readFileCmd testfile debug
-    , Scanner.scanString config "scanString BASE64 TEST" (encodeString Base64 "This is an encoded base64 test string!") Base64 ScannerComplete debug
-    , Scanner.scanString config "scanString TEST" "This is a test string!" Utf8 ScannerComplete debug
+buildTestCmd : Scanner.Config -> String -> List (Cmd Msg)
+buildTestCmd config testfile =
+    [ Scanner.scanFile config testfile ScannerComplete
+    , readFileCmd testfile
+    , Scanner.scanString config "scanString BASE64 TEST" (encodeString Base64 "This is an encoded base64 test string!") Base64 ScannerComplete
+    , Scanner.scanString config "scanString TEST" "This is a test string!" Utf8 ScannerComplete
     ]
 
 
-readFileCmd : String -> Bool -> Cmd Msg
-readFileCmd filename debug =
+readFileCmd : String -> Cmd Msg
+readFileCmd filename =
     NodeFileSystem.readFile filename
         |> Task.mapError (\error -> NodeError.message error)
-        |> Task.attempt (ReadFileComplete filename debug)
+        |> Task.attempt (ReadFileComplete filename)
 
 
 encodeString : Encoding -> String -> String
