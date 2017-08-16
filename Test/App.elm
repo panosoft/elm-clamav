@@ -68,7 +68,7 @@ init flags =
 type Msg
     = Exit ()
     | ReadFileComplete String (Result String Buffer)
-    | ScannerComplete (Result ( Scanner.Name, Scanner.ErrorMessage ) Scanner.Name)
+    | ScannerComplete (Result ( Scanner.Name, Scanner.Error ) Scanner.Name)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )

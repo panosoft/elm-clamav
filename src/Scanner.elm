@@ -2,7 +2,7 @@ module Scanner
     exposing
         ( Config
         , Name
-        , ErrorMessage
+        , Error
         , scanFile
         , scanBuffer
         , scanString
@@ -11,7 +11,7 @@ module Scanner
 {-| Clamav Scan Api.
 
 # Scanner
-@docs Config, Name, ErrorMessage, scanFile, scanBuffer, scanString
+@docs Config, Name, Error, scanFile, scanBuffer, scanString
 -}
 
 import Native.Scanner
@@ -29,10 +29,10 @@ type alias Name =
     String
 
 
-{-| Scan error message
+{-| Scan error
 -}
-type alias ErrorMessage =
-    { errorMessage : String
+type alias Error =
+    { message : String
     , virusName : Maybe String
     }
 
@@ -47,14 +47,14 @@ type alias Config =
 
 
 type alias ScannerComplete msg =
-    Result ( Name, ErrorMessage ) Name -> msg
+    Result ( Name, Error ) Name -> msg
 
 
 {-| Scan File for viruses.
 
 ```
 type Msg =
-    ScannerComplete (Result ( Name, ErrorMessage ) Name)
+    ScannerComplete (Result ( Name, Error ) Name)
 
 scanFile config "testfile.txt" ScannerComplete true
 ```
@@ -63,7 +63,7 @@ scanFile : Config -> String -> ScannerComplete msg -> Cmd msg
 scanFile config filename tagger =
     log config.debug "Reading file" filename
         |> NodeFileSystem.readFile
-        |> Task.mapError (\error -> ( filename, { errorMessage = NodeError.message error, virusName = Nothing } ))
+        |> Task.mapError (\error -> ( filename, { message = NodeError.message error, virusName = Nothing } ))
         |> Task.andThen (\buffer -> (log config.debug "scanBuffer" filename) |> (\_ -> Native.Scanner.scan config filename buffer))
         |> Task.attempt tagger
 
@@ -72,7 +72,7 @@ scanFile config filename tagger =
 
 ```
 type Msg =
-    ScannerComplete (Result ( Name, ErrorMessage ) Name)
+    ScannerComplete (Result ( Name, Error ) Name)
 
 scanBuffer config "testBuffer" buffer ScannerComplete false
 ```
@@ -87,7 +87,7 @@ scanBuffer config targetName targetBuffer tagger =
 
 ```
 type Msg =
-    ScannerComplete (Result ( Name, ErrorMessage ) Name)
+    ScannerComplete (Result ( Name, Error ) Name)
 
 scanString config "testString" "testingString" Encoding.Utf8 ScannerComplete true
 ```
@@ -107,7 +107,7 @@ scanString config targetName targetString encoding tagger =
         |> (\_ ->
                 fromString encoding targetString
                     |??> (\buffer -> internalScanBuffer config targetName buffer tagger)
-                    ??= (\error -> Task.fail ( targetName, { errorMessage = NodeError.message error, virusName = Nothing } ) |> Task.attempt tagger)
+                    ??= (\error -> Task.fail ( targetName, { message = NodeError.message error, virusName = Nothing } ) |> Task.attempt tagger)
            )
 
 
