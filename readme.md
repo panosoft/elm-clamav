@@ -137,7 +137,7 @@ type alias Error =
     }
 ```
 * `message` is the error message returned from the scan
-* `virusName` if the scan error was due to a virus being found then this is the name of the virus, otherwise `Nothing`
+* `virusName` the name of the virus if a virus was found during the scan, otherwise `Nothing`
 
 #### ScannerCompleteTagger
 
