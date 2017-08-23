@@ -35,16 +35,14 @@ type alias Model =
     { scannerConfig : Scanner.Config
     , numberOfTests : Int
     , testsComplete : Int
+    , errorOccurred : Bool
     }
 
 
 initModel : Config -> String -> Bool -> ( Model, Cmd Msg )
 initModel config testfile debug =
     Scanner.Config config.clamavHost config.clamavPort debug
-        |> (\scannerConfig ->
-                buildTestCmd scannerConfig testfile
-                    |> (\cmds -> ({ scannerConfig = scannerConfig, numberOfTests = List.length cmds, testsComplete = 0 } ! cmds))
-           )
+        |> (\scannerConfig -> ({ scannerConfig = scannerConfig, numberOfTests = 0, testsComplete = 0, errorOccurred = False } ! [ readFileCmd testfile ]))
 
 
 init : Flags -> ( Model, Cmd Msg )
@@ -74,7 +72,7 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
-        processTestsComplete testsComplete =
+        processTestsComplete testsComplete errorOccurred =
             model.scannerConfig.debug
                 ?! ( \_ -> Debug.log "TestsComplete" ((Basics.toString testsComplete) ++ " of " ++ (Basics.toString model.numberOfTests)), always "" )
                 |> (\_ ->
@@ -82,40 +80,41 @@ update msg model =
                             ? ( Task.perform Exit <| Task.succeed ()
                               , Cmd.none
                               )
-                            |> (\cmd -> ({ model | testsComplete = testsComplete } ! [ cmd ]))
+                            |> (\cmd -> ({ model | testsComplete = testsComplete, errorOccurred = (errorOccurred ? ( True, model.errorOccurred )) } ! [ cmd ]))
                    )
     in
         case msg of
             Exit _ ->
-                model ! [ exitApp 1 ]
+                model ! [ exitApp <| model.errorOccurred ? ( 1, 0 ) ]
 
             ReadFileComplete filename (Err error) ->
                 let
                     l =
                         Debug.log "ReadFileComplete Error" error
                 in
-                    processTestsComplete (model.testsComplete + 1)
+                    ({ model | errorOccurred = True } ! [ Task.perform Exit <| Task.succeed () ])
 
             ReadFileComplete filename (Ok buffer) ->
                 let
                     l =
                         Debug.log "ReadFileComplete" filename
                 in
-                    model ! [ Scanner.scanBuffer model.scannerConfig ("scanBuffer TEST (buffer read from " ++ filename ++ ")") buffer ScannerComplete ]
+                    buildTestCmds model.scannerConfig filename buffer
+                        |> (\cmds -> ({ model | numberOfTests = List.length cmds } ! cmds))
 
             ScannerComplete (Err ( name, error )) ->
                 let
                     l =
-                        Debug.log "ScannerComplete Error" ( name, error )
+                        Debug.log "ScannerComplete Error" { scanName = name, error = error }
                 in
-                    processTestsComplete (model.testsComplete + 1)
+                    processTestsComplete (model.testsComplete + 1) True
 
             ScannerComplete (Ok name) ->
                 let
                     l =
                         Debug.log "ScannerComplete" name
                 in
-                    processTestsComplete (model.testsComplete + 1)
+                    processTestsComplete (model.testsComplete + 1) False
 
 
 main : Program Flags Model Msg
@@ -132,12 +131,23 @@ subscriptions model =
     externalStop Exit
 
 
-buildTestCmd : Scanner.Config -> String -> List (Cmd Msg)
-buildTestCmd config testfile =
+base64TestString : String
+base64TestString =
+    "This is an encoded base64 test string!"
+
+
+testString : String
+testString =
+    "This is a test string!"
+
+
+buildTestCmds : Scanner.Config -> String -> Buffer -> List (Cmd Msg)
+buildTestCmds config testfile buffer =
     [ Scanner.scanFile config testfile ScannerComplete
-    , readFileCmd testfile
-    , Scanner.scanString config "scanString BASE64 TEST" (encodeString Base64 "This is an encoded base64 test string!") Base64 ScannerComplete
-    , Scanner.scanString config "scanString TEST" "This is a test string!" Utf8 ScannerComplete
+    , Scanner.scanString config ("scanString BASE64 TEST (targetString: '" ++ base64TestString ++ "')") (encodeString Base64 base64TestString) Base64 ScannerComplete
+    , Scanner.scanString config ("scanString TEST (targetString: '" ++ testString ++ "')") testString Utf8 ScannerComplete
+    , Scanner.scanBuffer config ("scanBuffer TEST (buffer created from " ++ testfile ++ " contents)") buffer ScannerComplete
+    , Scanner.scanString config ("scanString BASE64 TEST (string created from " ++ testfile ++ " contents)") (encodeBuffer Base64 buffer) Base64 ScannerComplete
     ]
 
 
@@ -154,4 +164,10 @@ encodeString encoding str =
         |> Result.andThen (Buffer.toString encoding)
         |> Result.mapError NodeError.message
     )
-        ??= (\error -> Debug.crash ("Encode error: " ++ error))
+        ??= (\error -> Debug.crash ("encodeString error: " ++ error))
+
+
+encodeBuffer : Encoding -> Buffer -> String
+encodeBuffer encoding buffer =
+    Buffer.toString encoding buffer
+        ??= (\error -> Debug.crash ("encodeBuffer error: " ++ (NodeError.message error)))
