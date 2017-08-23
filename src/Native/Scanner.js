@@ -7,7 +7,7 @@ var _panosoft$elm_clamav$Native_Scanner = function() {
         nativeBinding(callback => {
             try {
                 config.debug ? console.log('NATIVE --', {config: config, name: name, buffer_length: buffer.length,
-                    bufferAsString: buffer.toString('hex', 0, (buffer.length > 80 ? 80 : buffer.length)), partialBufferDisplay: (buffer.length > 80)}) : null;
+                    bufferAsHexString: buffer.toString('hex', 0, (buffer.length > 80 ? 80 : buffer.length)), partialBufferDisplay: (buffer.length > 80)}) : null;
                 if (buffer.length > 0) {
                     const bufferStream = new stream.PassThrough();
                     bufferStream.end(buffer);
