@@ -10,6 +10,7 @@ import Node.Buffer as Buffer exposing (..)
 import Node.FileSystem as NodeFileSystem exposing (..)
 import Node.Error as NodeError exposing (..)
 import Utils.Ops exposing (..)
+import DebugF exposing (..)
 
 
 port exitApp : Float -> Cmd msg
@@ -49,7 +50,7 @@ init : Flags -> ( Model, Cmd Msg )
 init flags =
     let
         l =
-            Debug.log "flags" flags
+            DebugF.log "flags" flags
     in
         (flags.debug == "--debug")
             ?! ( always True
@@ -79,7 +80,7 @@ update msg model =
     let
         processTestsComplete testsComplete errorOccurred =
             model.scannerConfig.debug
-                ?! ( \_ -> Debug.log "TestsComplete" ((Basics.toString testsComplete) ++ " of " ++ (Basics.toString model.numberOfTests)), always "" )
+                ?! ( \_ -> DebugF.log "TestsComplete" ((Basics.toString testsComplete) ++ " of " ++ (Basics.toString model.numberOfTests)), always "" )
                 |> (\_ ->
                         (testsComplete >= model.numberOfTests)
                             ? ( Task.perform Exit <| Task.succeed ()
@@ -95,14 +96,14 @@ update msg model =
             ReadFileComplete filename (Err error) ->
                 let
                     l =
-                        Debug.log "ReadFileComplete Error" error
+                        DebugF.log "ReadFileComplete Error" error
                 in
                     ({ model | errorOccurred = True } ! [ Task.perform Exit <| Task.succeed () ])
 
             ReadFileComplete filename (Ok buffer) ->
                 let
                     l =
-                        Debug.log "ReadFileComplete" filename
+                        DebugF.log "ReadFileComplete" filename
                 in
                     buildTestCmds model.scannerConfig filename buffer
                         |> (\cmds -> ({ model | numberOfTests = List.length cmds } ! cmds))
@@ -110,14 +111,14 @@ update msg model =
             ScannerComplete (Err ( name, error )) ->
                 let
                     l =
-                        Debug.log "ScannerComplete Error" { scanName = name, error = error }
+                        DebugF.log "ScannerComplete Error" { scanName = name, error = error }
                 in
                     processTestsComplete (model.testsComplete + 1) True
 
             ScannerComplete (Ok name) ->
                 let
                     l =
-                        Debug.log "ScannerComplete" name
+                        DebugF.log "ScannerComplete" name
                 in
                     processTestsComplete (model.testsComplete + 1) False
 
