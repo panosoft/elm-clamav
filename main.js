@@ -3,15 +3,27 @@
 
 // load Elm module
 const elm = require('./elm.js');
+
+const getConfig = arg => {
+    try {
+        return require(arg || './sampleConfig.js');
+    }
+    catch (err) {
+        console.log(err);
+        console.log("\n\Usage:  node main.js targetFilename configFilepath --debug\n\n    configFilepath and --debug are optional. configFilepath defaults to './sampleConfig'. (see main.js for more details).");
+        process.exit(1);
+    }
+}
+
 // run with:
-//  node main.js targetFilename configFilename --debug
+//  node main.js targetFilename configFilepath --debug
 //
 //      targetFilename = name of file to scan.
-//      configFilename = filename for ClamAV config. "" defaults to ./sampleConfig.js.  must follow 'node require' syntax (i.e. precede with ./ if in current directory).
+//      configFilepath = pathname for ClamAV config. "" defaults to ./sampleConfig.js.  must follow 'node require' syntax (i.e. precede with ./ if in current directory).
 //      --debug = optional, if --debug is specified, then debug logging will be enabled.
 
 const targetFilename = process.argv[2];
-const config = require(process.argv[3] || './sampleConfig.js');
+const config = getConfig(process.argv[3]);
 const debug = process.argv[4] || '';
 
 const flags = {

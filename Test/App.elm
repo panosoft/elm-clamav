@@ -56,11 +56,16 @@ init flags =
                , (\_ ->
                     (flags.debug == "")
                         ?! ( always False
-                           , (\_ -> Debug.crash ("optional debug parameter invalid: " ++ (Basics.toString flags.debug) ++ " . must be --debug if specified"))
+                           , (\_ -> Debug.crash ("optional debug parameter invalid: " ++ (Basics.toString flags.debug) ++ " . must be --debug if specified.\n\n" ++ usage))
                            )
                  )
                )
             |> initModel flags.config flags.targetFilename
+
+
+usage : String
+usage =
+    "Usage: 'node main.js <name of file to scan> <config file path> --debug' \n     '<config file path>' and '--debug' are optional.  '<config file path>' defaults to './sampleConfig' (see main.js for more details).\n"
 
 
 type Msg
