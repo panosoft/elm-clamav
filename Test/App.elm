@@ -1,6 +1,6 @@
 port module App exposing (..)
 
--- Needed otherwise Json.Decode is not included in compiled js
+--TODO Bug in 0.18 Elm compiler.  import is needed otherwise Json.Decode is not included in compiled js
 
 import Json.Decode
 import Task exposing (Task)
