@@ -1,7 +1,7 @@
 {
-  "name": "elm-clamav",
+  "name": "@panosoft/elm-clamav",
   "version": "1.0.0",
-  "description": "",
+  "description": "An Elm library that provides access to the ClamAV virus scanning API",
   "author": "Don Gaudino",
   "license": "Unlicense",
   "dependencies": {

@@ -1,6 +1,6 @@
 {
     "version": "1.0.0",
-    "summary": "",
+    "summary": "An Elm library that provides access to the ClamAV virus scanning API",
     "repository": "https://github.com/panosoft/elm-clamav.git",
     "license": "Unlicense",
     "source-directories": [
