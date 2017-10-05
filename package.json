@@ -5,10 +5,8 @@
   "author": "Don Gaudino",
   "license": "Unlicense",
   "dependencies": {
-    "clamav.js": "^0.12.0",
-    "cpr": "^2.0.2",
-    "mkdirp": "^0.5.1",
-    "rimraf": "^2.6.1"
+    "@elm-node/core": "git+https://github.com/elm-node/core.git#semver:^2.2.0",
+    "clamav.js": "^0.12.0"
   },
   "devDependencies": {}
 }
