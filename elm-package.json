@@ -1,5 +1,5 @@
 {
-    "version": "1.0.0",
+    "version": "1.0.1",
     "summary": "An Elm library that provides access to the ClamAV virus scanning API",
     "repository": "https://github.com/panosoft/elm-clamav.git",
     "license": "Unlicense",
